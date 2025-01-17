@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fit-byte/constants"
 	"fit-byte/db"
 	"fit-byte/usecases/auth"
 	"fit-byte/usecases/user"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/jwtauth/v5"
 	"github.com/joho/godotenv"
 )
 
@@ -26,8 +28,10 @@ func main() {
     userRepository := user.NewUserRepository(ctx, pgConn)
 
     authService := auth.NewAuthService(userRepository)
+    userService := user.NewUserService(userRepository)
     
     authHandler := auth.NewAuthHandler(authService)
+    userHandler := user.NewUserHandler(userService)
     
     r := chi.NewRouter()
     r.Use(middleware.Logger)
@@ -38,6 +42,16 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Post("/register", utils.AppHandler(authHandler.HandleRegister))
 			r.Post("/login", utils.AppHandler(authHandler.HandleLogin))
+		})
+
+		// protected
+		r.Group(func(r chi.Router) {
+			tokenAuth := jwtauth.New(constants.HASH_ALG, []byte(constants.JWT_SECRET), nil)
+			r.Use(jwtauth.Verifier(tokenAuth))
+			r.Use(jwtauth.Authenticator(tokenAuth))
+			r.Use(utils.AllowContentType("application/json", "multipart/form-data"))
+
+			r.Get("/user", utils.AppHandler(userHandler.HandleGetProfile))
 		})
 	})
     

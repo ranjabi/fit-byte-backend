@@ -57,3 +57,18 @@ func (r *UserRepository) FindByEmail(email string) (*models.User, error) {
 
 	return &user, nil
 }
+
+func (r *UserRepository) FindById(id string) (*models.User, error) {
+	query := `SELECT * FROM users WHERE id = @id`
+	args := pgx.NamedArgs{
+		"id": id,
+	}
+
+	rows, _ := r.pgConn.Query(r.ctx, query, args)
+	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.User])
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}

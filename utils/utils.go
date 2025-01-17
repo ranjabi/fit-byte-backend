@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/jwtauth/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -61,5 +62,31 @@ func AppHandler(fn func(http.ResponseWriter, *http.Request) error) http.HandlerF
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+}
+
+func AllowContentType(contentTypes ...string) func(http.Handler) http.Handler {
+	allowedContentTypes := make(map[string]struct{}, len(contentTypes))
+	for _, ctype := range contentTypes {
+		allowedContentTypes[strings.TrimSpace(strings.ToLower(ctype))] = struct{}{}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.ContentLength == 0 {
+				// Skip check for empty content body
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
+
+			if _, ok := allowedContentTypes[s]; ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			w.WriteHeader(http.StatusBadRequest)
+		})
 	}
 }
