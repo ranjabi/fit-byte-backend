@@ -16,11 +16,17 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), err
 }
 
+func CheckPasswordHash(hash, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+
+	return err == nil
+}
+
 func CreateClaims(user *models.User) (string, error) {
 	tokenAuth := jwtauth.New(constants.HASH_ALG, []byte(constants.JWT_SECRET), nil)
 	claims := map[string]any{
-		"user_id":    user.Id,
-		"user_email": user.Email,
+		"userId":    user.Id,
+		"userEmail": user.Email,
 	}
 	_, tokenString, err := tokenAuth.Encode(claims)
 	if err != nil {

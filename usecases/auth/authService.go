@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"errors"
 	"fit-byte/constants"
 	"fit-byte/models"
 	"fit-byte/usecases/user"
 	"fit-byte/utils"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -40,4 +42,28 @@ func (s *AuthService) CreateUser(user models.User) (*models.User, error) {
 	newUser.Token = token
 
 	return newUser, nil
+}
+
+func (s *AuthService) Login(email string, password string) (*models.User, error) {
+	user, err := s.userRepository.FindByEmail(email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, models.NewError(http.StatusNotFound, "Email is not exist")
+		}
+
+		return nil, err
+	}
+
+	match := utils.CheckPasswordHash(user.Password, password)
+	if match {
+		token, err := utils.CreateClaims(user)
+		if err != nil {
+			return nil, err
+		}
+
+		user.Token = token
+		return user, nil
+	} else {
+		return nil, models.NewError(http.StatusUnauthorized, "Invalid email/password")
+	}
 }

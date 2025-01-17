@@ -37,6 +37,7 @@ func main() {
 		// public
 		r.Group(func(r chi.Router) {
 			r.Post("/register", utils.AppHandler(authHandler.HandleRegister))
+			r.Post("/login", utils.AppHandler(authHandler.HandleLogin))
 		})
 	})
     

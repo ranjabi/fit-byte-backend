@@ -54,3 +54,36 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) err
 
 	return nil
 }
+
+func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) error {
+	payload := struct {
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required,min=8,max=32"`
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		return models.NewError(http.StatusBadRequest, err.Error())
+	}
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	if err := validate.Struct(payload); err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			validationErr := fmt.Errorf("validation for '%s' failed", err.Field())
+			return models.NewError(http.StatusBadRequest, validationErr.Error())
+		}
+	}
+
+	user, err := h.authService.Login(payload.Email, payload.Password)
+	if err != nil {
+		return err
+	}
+
+	res := struct {
+		Email string `json:"email"`
+		Token string `json:"token"`
+	}{
+		Email: user.Email,
+		Token: user.Token,
+	}
+	utils.SetJsonResponse(w, http.StatusOK, res)
+
+	return nil
+}

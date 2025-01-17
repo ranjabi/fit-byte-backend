@@ -42,3 +42,18 @@ func (r *UserRepository) Save(user models.User) (*models.User, error) {
 
 	return &newUser, nil
 }
+
+func (r *UserRepository) FindByEmail(email string) (*models.User, error) {
+	query := `SELECT * FROM users WHERE LOWER(email) = LOWER(@email)`
+	args := pgx.NamedArgs{
+		"email": email,
+	}
+
+	rows, _ := r.pgConn.Query(r.ctx, query, args)
+	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.User])
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
