@@ -2,10 +2,14 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
+	"reflect"
 	"strings"
 
 	"github.com/go-chi/jwtauth/v5"
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"fit-byte/constants"
@@ -89,4 +93,74 @@ func AllowContentType(contentTypes ...string) func(http.Handler) http.Handler {
 			w.WriteHeader(http.StatusBadRequest)
 		})
 	}
+}
+
+func GetJSONTagName(field reflect.StructField) string {
+	tag := field.Tag.Get("db")
+
+	parts := strings.Split(tag, ",")
+
+	return parts[0]
+}
+
+func BuildPartialUpdateQuery(tableName, idField, idValue string, data interface{}) (string, pgx.NamedArgs, error) {
+	val := reflect.ValueOf(data).Elem()
+	typ := reflect.TypeOf(data).Elem()
+
+	query := fmt.Sprintf("UPDATE %s SET ", tableName)
+	args := pgx.NamedArgs{}
+	var setClauses []string
+	index := 1
+
+	for i := 0; i < val.NumField(); i++ {
+		fieldValue := val.Field(i)
+		fieldName := GetJSONTagName(typ.Field(i))
+
+		if fieldName == "" || fieldName == "-" {
+			continue
+		}
+
+		if !fieldValue.IsNil() {
+			if fieldName == idField {
+				setClauses = append(setClauses, fmt.Sprintf("%s = @%sNew", fieldName, fieldName))
+				args[fieldName + "New"] = fieldValue.Elem().Interface() // Dereference the pointer
+			} else {
+				setClauses = append(setClauses, fmt.Sprintf("%s = @%s", fieldName, fieldName))
+				args[fieldName] = fieldValue.Elem().Interface()
+			}
+			index++
+		}
+	}
+
+	if len(setClauses) == 0 {
+		query = fmt.Sprintf(`
+		SELECT *
+		FROM %s
+		WHERE %s = @%s
+		`, tableName, idField, idField)
+		args = pgx.NamedArgs{
+			idField: idValue,
+		}
+		return query, args, nil
+	}
+
+	query += strings.Join(setClauses, ", ")
+	query += fmt.Sprintf(" WHERE %s = @%s", idField, idField)
+	args[idField] = idValue
+	query += " RETURNING *"
+
+	return query, args, nil
+}
+
+func IsValidHost(host string) bool {
+	return strings.Count(host, ".") > 0
+}
+
+func IsValidURI(urlString string) bool {
+	parsedURL, err := url.ParseRequestURI(urlString)
+	if err != nil {
+		return false
+	}
+
+	return IsValidHost(parsedURL.Hostname())
 }

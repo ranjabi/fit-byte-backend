@@ -51,7 +51,8 @@ func main() {
 			r.Use(jwtauth.Authenticator(tokenAuth))
 			r.Use(utils.AllowContentType("application/json", "multipart/form-data"))
 
-			r.Get("/user", utils.AppHandler(userHandler.HandleGetProfile))
+			r.Get("/user", utils.AppHandler(userHandler.HandleGetUser))
+			r.Patch("/user", utils.AppHandler(userHandler.HandleUpdateUser))
 		})
 	})
     

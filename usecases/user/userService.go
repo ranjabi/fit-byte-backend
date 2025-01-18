@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 	"fit-byte/models"
+	"fit-byte/types"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,15 @@ func (s *UserService) FindById(id string) (*models.User, error) {
 			return nil, models.NewError(http.StatusNotFound, "")
 		}
 
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (s *UserService) PartialUpdate(id string, payload types.UpdateUserPayload) (*models.User, error) {
+	user, err := s.userRepository.PartialUpdate(id, payload)
+	if err != nil {
 		return nil, err
 	}
 
