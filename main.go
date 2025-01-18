@@ -4,6 +4,7 @@ import (
 	"context"
 	"fit-byte/constants"
 	"fit-byte/db"
+	"fit-byte/usecases/activity"
 	"fit-byte/usecases/auth"
 	"fit-byte/usecases/user"
 	"fit-byte/utils"
@@ -26,12 +27,15 @@ func main() {
 	pgConn := db.Setup(ctx)
 
     userRepository := user.NewUserRepository(ctx, pgConn)
+	activityRepository := activity.NewActivityRepository(ctx, pgConn)
 
     authService := auth.NewAuthService(userRepository)
     userService := user.NewUserService(userRepository)
+	activityService := activity.NewActivityService(activityRepository)
     
     authHandler := auth.NewAuthHandler(authService)
     userHandler := user.NewUserHandler(userService)
+	activityHandler := activity.NewActivityHandler(activityService)
     
     r := chi.NewRouter()
     r.Use(middleware.Logger)
@@ -53,6 +57,8 @@ func main() {
 
 			r.Get("/user", utils.AppHandler(userHandler.HandleGetUser))
 			r.Patch("/user", utils.AppHandler(userHandler.HandleUpdateUser))
+
+			r.Post("/activity", utils.AppHandler(activityHandler.HandleCreateActivity))
 		})
 	})
     

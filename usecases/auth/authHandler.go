@@ -50,7 +50,7 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) err
 		Email: newUser.Email,
 		Token: newUser.Token,
 	}
-	utils.SetJsonResponse(w, http.StatusOK, res)
+	utils.SetJsonResponse(w, http.StatusCreated, res)
 
 	return nil
 }

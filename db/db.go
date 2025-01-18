@@ -62,7 +62,7 @@ func Setup(ctx context.Context) *pgxpool.Pool {
 		log.Fatal("Error getting database connection:", err)
 	}
 
-	log.SetPrefix("DB: ")
+	log.SetPrefix("")
 
 	return pgConn
 }
