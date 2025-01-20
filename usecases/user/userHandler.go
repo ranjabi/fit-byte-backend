@@ -40,7 +40,7 @@ func (h *UserHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) erro
 		Height     pgtype.Int4 `json:"height"`
 		Email      string      `json:"email"`
 		Name       pgtype.Text `json:"name"`
-		ImageUri   pgtype.Text `json:"imageuri"`
+		ImageUri   pgtype.Text `json:"imageUri"`
 	}{
 		Preference: user.Preference,
 		WeightUnit: user.WeightUnit,
@@ -61,9 +61,24 @@ func (h *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) e
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		return models.NewError(http.StatusBadRequest, err.Error())
 	}
-	if !utils.IsValidURI(*payload.ImageUri) {
-		return models.NewError(http.StatusBadRequest, "Invalid uri")
+	if string(payload.NameRaw) == "null" ||
+		string(payload.ImageUriRaw) == "null" {
+		return models.NewError(http.StatusBadRequest, "input can't be null")
 	}
+	if payload.NameRaw != nil {
+		if err := json.Unmarshal([]byte(payload.NameRaw), &payload.Name); err != nil {
+			return models.NewError(http.StatusBadRequest, err.Error())
+		}
+	}
+	if payload.ImageUriRaw != nil {
+		if err := json.Unmarshal([]byte(payload.ImageUriRaw), &payload.ImageUri); err != nil {
+			return models.NewError(http.StatusBadRequest, err.Error())
+		}
+		if !utils.IsValidURI(*payload.ImageUri) {
+			return models.NewError(http.StatusBadRequest, "Invalid uri")
+		}
+	}
+	
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	if err := validate.Struct(payload); err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
@@ -89,7 +104,7 @@ func (h *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) e
 		Weight     pgtype.Int4 `json:"weight"`
 		Height     pgtype.Int4 `json:"height"`
 		Name       pgtype.Text `json:"name"`
-		ImageUri   pgtype.Text `json:"imageuri"`
+		ImageUri   pgtype.Text `json:"imageUri"`
 	}{
 		Preference: user.Preference,
 		WeightUnit: user.WeightUnit,

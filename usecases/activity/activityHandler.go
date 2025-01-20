@@ -51,19 +51,19 @@ func (h *AcitivityHandler) HandleCreateActivity(w http.ResponseWriter, r *http.R
 	res := struct {
 		ActivityId        string    `json:"activityId"`
 		ActivityType      string    `json:"activityType"`
-		DoneAt            time.Time `json:"doneAt"`
+		DoneAt            CustomTime `json:"doneAt"`
 		DurationInMinutes int       `json:"durationInMinutes"`
 		CaloriesBurned    int       `json:"caloriesBurned"`
-		CreatedAt         time.Time `json:"createdAt"`
-		UpdatedAt         time.Time `json:"updatedAt"`
+		CreatedAt         CustomTime `json:"createdAt"`
+		UpdatedAt         CustomTime `json:"updatedAt"`
 	}{
 		ActivityId:        newActivity.Id,
 		ActivityType:      newActivity.ActivityType,
-		DoneAt:            newActivity.DoneAt,
+		DoneAt:            CustomTime(newActivity.DoneAt),
 		DurationInMinutes: newActivity.DurationInMinutes,
 		CaloriesBurned:    newActivity.CaloriesBurned,
-		CreatedAt:         newActivity.CreatedAt,
-		UpdatedAt:         newActivity.UpdatedAt,
+		CreatedAt:         CustomTime(newActivity.CreatedAt),
+		UpdatedAt:         CustomTime(newActivity.UpdatedAt),
 	}
 	utils.SetJsonResponse(w, http.StatusCreated, res)
 
@@ -73,11 +73,11 @@ func (h *AcitivityHandler) HandleCreateActivity(w http.ResponseWriter, r *http.R
 func IsISO8601Date(fl validator.FieldLevel) bool {
 	ISO8601DateRegexString := "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-][01]\\d:[0-5]\\d)$"
 	ISO8601DateRegex := regexp.MustCompile(ISO8601DateRegexString)
-  return ISO8601DateRegex.MatchString(fl.Field().String())
+	return ISO8601DateRegex.MatchString(fl.Field().String())
 }
 
 func (h *AcitivityHandler) HandleGetAllActivities(w http.ResponseWriter, r *http.Request) error {
-	
+
 	validate := validator.New()
 	validate.RegisterValidation("ISO8601date", IsISO8601Date)
 
@@ -96,7 +96,7 @@ func (h *AcitivityHandler) HandleGetAllActivities(w http.ResponseWriter, r *http
 	var doneAtTo *string = &doneAtToRaw
 	var caloriesBurnedMin *string = &caloriesBurnedMinRaw
 	var caloriesBurnedMax *string = &caloriesBurnedMaxRaw
-	
+
 	if limitStr != "" {
 		limitTemp, err := strconv.Atoi(limitStr)
 		if err != nil {
@@ -152,6 +152,21 @@ func (h *AcitivityHandler) HandleUpdateActivity(w http.ResponseWriter, r *http.R
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		return models.NewError(http.StatusBadRequest, err.Error())
 	}
+
+	if string(payload.ActivityTypeRaw) == "null" || string(payload.DoneAtRaw) == "null" {
+		return models.NewError(http.StatusBadRequest, "input can't be null")
+	}
+	if payload.ActivityTypeRaw != nil {
+		if err := json.Unmarshal([]byte(payload.ActivityTypeRaw), &payload.ActivityType); err != nil {
+			return models.NewError(http.StatusBadRequest, err.Error())
+		}
+	}
+	if payload.DoneAtRaw != nil {
+		if err := json.Unmarshal([]byte(payload.DoneAtRaw), &payload.DoneAt); err != nil {
+			return models.NewError(http.StatusBadRequest, err.Error())
+		}
+	}
+
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	if err := validate.Struct(payload); err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
@@ -168,19 +183,30 @@ func (h *AcitivityHandler) HandleUpdateActivity(w http.ResponseWriter, r *http.R
 	res := struct {
 		ActivityId        string    `json:"activityId"`
 		ActivityType      string    `json:"activityType"`
-		DoneAt            time.Time `json:"doneAt"`
+		DoneAt            CustomTime `json:"doneAt"`
 		DurationInMinutes int       `json:"durationInMinutes"`
 		CaloriesBurned    int       `json:"caloriesBurned"`
+		CreatedAt         CustomTime `json:"createdAt"`
+		UpdatedAt         CustomTime `json:"updatedAt"`
 	}{
 		ActivityId:        activity.Id,
 		ActivityType:      activity.ActivityType,
-		DoneAt:            activity.DoneAt,
+		DoneAt:            CustomTime(activity.DoneAt),
 		DurationInMinutes: activity.DurationInMinutes,
 		CaloriesBurned:    activity.CaloriesBurned,
+		CreatedAt:         CustomTime(activity.CreatedAt),
+		UpdatedAt:         CustomTime(activity.UpdatedAt),
 	}
 	utils.SetJsonResponse(w, http.StatusOK, res)
 
 	return nil
+}
+
+type CustomTime time.Time
+
+func (ct CustomTime) MarshalJSON() ([]byte, error) {
+    t := time.Time(ct)
+    return []byte(`"` + t.Format("2006-01-02T15:04:05.000Z") + `"`), nil
 }
 
 func (h *AcitivityHandler) HandleDeleteActivity(w http.ResponseWriter, r *http.Request) error {

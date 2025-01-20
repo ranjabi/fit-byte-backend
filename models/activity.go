@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Activity struct {
-	Id                string    `json:"id" db:"id"`
+	Id                string    `json:"activityId" db:"id"`
 	ActivityType      string    `json:"activityType" db:"activity_type"`
 	DoneAt            time.Time `json:"doneAt" db:"done_at"`
 	DurationInMinutes int       `json:"durationInMinutes" db:"duration_in_minutes"`

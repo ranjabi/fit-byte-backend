@@ -100,10 +100,12 @@ func (r *ActivityRepository) GetAllActivities(offset int, limit int, activityTyp
 	return activities, nil
 }
 
-// todo: readjust burnedcalories
 func (r *ActivityRepository) Update(id string, payload types.UpdateActivityPayload) (*models.Activity, error) {
+	if payload.DurationInMinutes != nil {
+		caloriesBurned := utils.CalculateCaloriesBurned(*payload.ActivityType, *payload.DurationInMinutes)
+		payload.CaloriesBurned = &caloriesBurned
+	}
 	query, args, err := utils.BuildPartialUpdateQuery("activities", "id", id, &payload)
-	fmt.Printf("payload: %#v\n", payload)
 	if err != nil {
 		return nil, err
 	}
