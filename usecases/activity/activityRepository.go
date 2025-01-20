@@ -60,7 +60,7 @@ func (r *ActivityRepository) Update(id string, payload types.UpdateActivityPaylo
 	if err != nil {
 		return nil, fmt.Errorf("QUERY: %#v\nARGS: %#v\nROWS: %#v\n%v", query, args, rows, err.Error())
 	}
-	
+
 	activity, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.Activity])
 	if err != nil {
 		return nil, models.NewError(http.StatusNotFound, "identityId is not found")
@@ -68,4 +68,20 @@ func (r *ActivityRepository) Update(id string, payload types.UpdateActivityPaylo
 	
 
 	return &activity, nil
+}
+
+func (r *ActivityRepository) Delete(id string) error {
+	query := `DELETE FROM activities WHERE id = @id`
+	args := pgx.NamedArgs{
+		"id": id,
+	}
+	commandTag, err := r.pgConn.Exec(r.ctx, query, args); 
+	if err != nil {
+		return err
+	}
+	if commandTag.RowsAffected() == 0 {
+		return models.NewError(http.StatusNotFound, "")
+	}
+
+	return nil
 }

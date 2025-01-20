@@ -104,3 +104,16 @@ func (h *AcitivityHandler) HandleUpdateActivity(w http.ResponseWriter, r *http.R
 
 	return nil
 }
+
+func (h *AcitivityHandler) HandleDeleteActivity(w http.ResponseWriter, r *http.Request) error {
+	activityId := r.PathValue("activityId")
+
+	err := h.activityService.DeleteActivity(activityId)
+	if err != nil {
+		return err
+	}
+
+	w.Write([]byte(""))
+
+	return nil
+}

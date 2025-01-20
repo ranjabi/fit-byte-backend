@@ -60,6 +60,7 @@ func main() {
 
 			r.Post("/activity", utils.AppHandler(activityHandler.HandleCreateActivity))
 			r.Patch("/activity/{activityId}", utils.AppHandler(activityHandler.HandleUpdateActivity))
+			r.Delete("/activity/{activityId}", utils.AppHandler(activityHandler.HandleDeleteActivity))
 		})
 	})
     

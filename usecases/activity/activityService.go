@@ -1,9 +1,13 @@
 package activity
 
 import (
+	"fit-byte/constants"
 	"fit-byte/models"
 	"fit-byte/types"
 	"fit-byte/utils"
+	"net/http"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type ActivityService struct {
@@ -32,4 +36,17 @@ func (s *ActivityService) UpdateActivity(id string, payload types.UpdateActivity
 	}
 
 	return activity, nil
+}
+
+func (s *ActivityService) DeleteActivity(id string) (error) {
+	err := s.activityRepository.Delete(id)
+	if err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == constants.INVALID_INPUT_SYNTAX_TYPE_ERROR_CODE {
+			return models.NewError(http.StatusNotFound, "")
+		}
+		
+		return err
+	}
+
+	return nil
 }
