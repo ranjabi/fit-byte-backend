@@ -6,16 +6,32 @@ import (
 	"fit-byte/db"
 	"fit-byte/usecases/activity"
 	"fit-byte/usecases/auth"
+	"fit-byte/usecases/file"
 	"fit-byte/usecases/user"
 	"fit-byte/utils"
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/joho/godotenv"
 )
+
+var s3Client *s3.Client
+
+func initS3(ctx context.Context) error {
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(os.Getenv("AWS_REGION")))
+	if err != nil {
+		log.Fatalf("Unable to load AWS config: %v", err)
+	}
+
+	s3Client = s3.NewFromConfig(awsConfig)
+	return nil
+}
 
 func main() {
     err := godotenv.Load(".env")
@@ -25,6 +41,9 @@ func main() {
 
     ctx := context.Background()
 	pgConn := db.Setup(ctx)
+	if err := initS3(ctx); err != nil {
+		log.Fatal(err.Error())
+	}
 
     userRepository := user.NewUserRepository(ctx, pgConn)
 	activityRepository := activity.NewActivityRepository(ctx, pgConn)
@@ -32,10 +51,12 @@ func main() {
     authService := auth.NewAuthService(userRepository)
     userService := user.NewUserService(userRepository)
 	activityService := activity.NewActivityService(activityRepository)
+	fileService := file.NewFileService(s3Client, ctx)
     
     authHandler := auth.NewAuthHandler(authService)
     userHandler := user.NewUserHandler(userService)
 	activityHandler := activity.NewActivityHandler(activityService)
+	fileHandler := file.NewFileHandler(fileService)
     
     r := chi.NewRouter()
     r.Use(middleware.Logger)
@@ -62,6 +83,8 @@ func main() {
 			r.Post("/activity", utils.AppHandler(activityHandler.HandleCreateActivity))
 			r.Patch("/activity/{activityId}", utils.AppHandler(activityHandler.HandleUpdateActivity))
 			r.Delete("/activity/{activityId}", utils.AppHandler(activityHandler.HandleDeleteActivity))
+
+			r.Post("/file", utils.AppHandler(fileHandler.HandleUploadFile))
 		})
 	})
     

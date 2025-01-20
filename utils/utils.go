@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
 
@@ -180,4 +181,8 @@ func CalculateCaloriesBurned(activity string, minutes int) int {
 	}
 
 	return activityCaloriesBurnedPerMinute[activity] * minutes
+}
+
+func GenerateS3FileURL(key string) string {
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("S3_BUCKET_NAME"), os.Getenv("AWS_REGION"), key)
 }
