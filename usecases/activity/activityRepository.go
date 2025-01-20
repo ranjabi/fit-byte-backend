@@ -26,12 +26,14 @@ func (r *ActivityRepository) Save(activity models.Activity) (*models.Activity, e
 	INSERT INTO activities (
 		activity_type, 
 		done_at, 
-		duration_in_minutes
+		duration_in_minutes,
+		calories_burned
 	) 
 	VALUES (
 		@activity_type, 
 		@done_at, 
-		@duration_in_minutes
+		@duration_in_minutes,
+		@calories_burned
 	)
 	RETURNING *
 	`
@@ -39,6 +41,7 @@ func (r *ActivityRepository) Save(activity models.Activity) (*models.Activity, e
 		"activity_type": activity.ActivityType,
 		"done_at": activity.DoneAt,
 		"duration_in_minutes": activity.DurationInMinutes,
+		"calories_burned": utils.CalculateCaloriesBurned(activity.ActivityType, activity.DurationInMinutes),
 	}
 
 	rows, _ := r.pgConn.Query(r.ctx, query, args)

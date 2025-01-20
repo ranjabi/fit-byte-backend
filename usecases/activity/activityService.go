@@ -4,7 +4,6 @@ import (
 	"fit-byte/constants"
 	"fit-byte/models"
 	"fit-byte/types"
-	"fit-byte/utils"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -23,8 +22,6 @@ func (s *ActivityService) CreateActivity(activity models.Activity) (*models.Acti
 	if err != nil {
 		return nil, err
 	}
-
-	newActivity.CaloriesBurned = utils.CalculateCaloriesBurned(newActivity.ActivityType, newActivity.DurationInMinutes)
 
 	return newActivity, nil
 }
