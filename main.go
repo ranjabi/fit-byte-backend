@@ -59,6 +59,7 @@ func main() {
 			r.Patch("/user", utils.AppHandler(userHandler.HandleUpdateUser))
 
 			r.Post("/activity", utils.AppHandler(activityHandler.HandleCreateActivity))
+			r.Patch("/activity/{activityId}", utils.AppHandler(activityHandler.HandleUpdateActivity))
 		})
 	})
     

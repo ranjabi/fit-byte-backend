@@ -2,6 +2,7 @@ package activity
 
 import (
 	"fit-byte/models"
+	"fit-byte/types"
 	"fit-byte/utils"
 )
 
@@ -22,4 +23,13 @@ func (s *ActivityService) CreateActivity(activity models.Activity) (*models.Acti
 	newActivity.CaloriesBurned = utils.CalculateCaloriesBurned(newActivity.ActivityType, newActivity.DurationInMinutes)
 
 	return newActivity, nil
+}
+
+func (s *ActivityService) UpdateActivity(id string, payload types.UpdateActivityPayload) (*models.Activity, error) {
+	activity, err := s.activityRepository.Update(id, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return activity, nil
 }

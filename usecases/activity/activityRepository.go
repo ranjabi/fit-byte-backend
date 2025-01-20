@@ -3,6 +3,10 @@ package activity
 import (
 	"context"
 	"fit-byte/models"
+	"fit-byte/types"
+	"fit-byte/utils"
+	"fmt"
+	"net/http"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -44,4 +48,24 @@ func (r *ActivityRepository) Save(activity models.Activity) (*models.Activity, e
 	}
 
 	return &newActivity, nil
+}
+
+func (r *ActivityRepository) Update(id string, payload types.UpdateActivityPayload) (*models.Activity, error) {
+	query, args, err := utils.BuildPartialUpdateQuery("activities", "id", id, &payload)
+	fmt.Printf("payload: %#v\n", payload)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.pgConn.Query(r.ctx, query, args)
+	if err != nil {
+		return nil, fmt.Errorf("QUERY: %#v\nARGS: %#v\nROWS: %#v\n%v", query, args, rows, err.Error())
+	}
+	
+	activity, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.Activity])
+	if err != nil {
+		return nil, models.NewError(http.StatusNotFound, "identityId is not found")
+	}
+	
+
+	return &activity, nil
 }

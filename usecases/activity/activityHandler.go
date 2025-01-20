@@ -3,6 +3,7 @@ package activity
 import (
 	"encoding/json"
 	"fit-byte/models"
+	"fit-byte/types"
 	"fit-byte/utils"
 	"fmt"
 	"net/http"
@@ -63,6 +64,43 @@ func (h *AcitivityHandler) HandleCreateActivity(w http.ResponseWriter, r *http.R
 		UpdatedAt:         newActivity.UpdatedAt,
 	}
 	utils.SetJsonResponse(w, http.StatusCreated, res)
+
+	return nil
+}
+
+func (h *AcitivityHandler) HandleUpdateActivity(w http.ResponseWriter, r *http.Request) error {
+	activityId := r.PathValue("activityId")
+	payload := types.UpdateActivityPayload{}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		return models.NewError(http.StatusBadRequest, err.Error())
+	}
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	if err := validate.Struct(payload); err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			validationErr := fmt.Errorf("validation for '%s' failed", err.Field())
+			return models.NewError(http.StatusBadRequest, validationErr.Error())
+		}
+	}
+
+	activity, err := h.activityService.UpdateActivity(activityId, payload)
+	if err != nil {
+		return err
+	}
+
+	res := struct {
+		ActivityId        string    `json:"activityId"`
+		ActivityType      string    `json:"activityType"`
+		DoneAt            time.Time `json:"doneAt"`
+		DurationInMinutes int       `json:"durationInMinutes"`
+		CaloriesBurned    int       `json:"caloriesBurned"`
+	}{
+		ActivityId:        activity.Id,
+		ActivityType:      activity.ActivityType,
+		DoneAt:            activity.DoneAt,
+		DurationInMinutes: activity.DurationInMinutes,
+		CaloriesBurned:    activity.CaloriesBurned,
+	}
+	utils.SetJsonResponse(w, http.StatusOK, res)
 
 	return nil
 }
