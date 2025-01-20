@@ -7,6 +7,7 @@ import (
 	"fit-byte/utils"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -38,8 +39,8 @@ func (r *ActivityRepository) Save(activity models.Activity) (*models.Activity, e
 	RETURNING *
 	`
 	args := pgx.NamedArgs{
-		"activity_type": activity.ActivityType,
-		"done_at": activity.DoneAt,
+		"activity_type":       activity.ActivityType,
+		"done_at":             activity.DoneAt,
 		"duration_in_minutes": activity.DurationInMinutes,
 		"calories_burned": utils.CalculateCaloriesBurned(activity.ActivityType, activity.DurationInMinutes),
 	}
@@ -53,6 +54,53 @@ func (r *ActivityRepository) Save(activity models.Activity) (*models.Activity, e
 	return &newActivity, nil
 }
 
+func (r *ActivityRepository) GetAllActivities(offset int, limit int, activityType *string, doneAtFrom *string, doneAtTo *string, caloriesBurnedMin *string, caloriesBurnedMax *string) ([]models.Activity, error) {
+	var conditions []string
+
+	if activityType != nil {
+		conditions = append(conditions, fmt.Sprintf("activity_type = '%s'", *activityType))
+	}
+	if doneAtFrom != nil {
+		conditions = append(conditions, fmt.Sprintf("done_at >= '%s'", *doneAtFrom))
+	}
+	if doneAtTo != nil {
+		conditions = append(conditions, fmt.Sprintf("done_at <= '%s'", *doneAtTo))
+	}
+	if caloriesBurnedMin != nil {
+		conditions = append(conditions, fmt.Sprintf("calories_burned >= '%s'", *caloriesBurnedMin))
+	}
+	if caloriesBurnedMax != nil {
+		conditions = append(conditions, fmt.Sprintf("calories_burned <= '%s'", *caloriesBurnedMax))
+	}
+
+	query := "SELECT * FROM activities"
+
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	query += `
+	ORDER BY created_at
+	LIMIT @limit
+	OFFSET @offset`
+	args := pgx.NamedArgs{
+		"limit":  limit,
+		"offset": offset,
+	}
+	rows, err := r.pgConn.Query(r.ctx, query, args)
+	if err != nil {
+		return nil, fmt.Errorf("QUERY: %#v\nARGS: %#v\nROWS: %#v\n%v", query, args, rows, err.Error())
+	}
+
+	activities, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Activity])
+	if err != nil {
+		return nil, err
+	}
+
+	return activities, nil
+}
+
+// todo: readjust burnedcalories
 func (r *ActivityRepository) Update(id string, payload types.UpdateActivityPayload) (*models.Activity, error) {
 	query, args, err := utils.BuildPartialUpdateQuery("activities", "id", id, &payload)
 	fmt.Printf("payload: %#v\n", payload)
@@ -68,7 +116,6 @@ func (r *ActivityRepository) Update(id string, payload types.UpdateActivityPaylo
 	if err != nil {
 		return nil, models.NewError(http.StatusNotFound, "identityId is not found")
 	}
-	
 
 	return &activity, nil
 }
@@ -78,7 +125,7 @@ func (r *ActivityRepository) Delete(id string) error {
 	args := pgx.NamedArgs{
 		"id": id,
 	}
-	commandTag, err := r.pgConn.Exec(r.ctx, query, args); 
+	commandTag, err := r.pgConn.Exec(r.ctx, query, args)
 	if err != nil {
 		return err
 	}

@@ -123,7 +123,7 @@ func BuildPartialUpdateQuery(tableName, idField, idValue string, data interface{
 		if !fieldValue.IsNil() {
 			if fieldName == idField {
 				setClauses = append(setClauses, fmt.Sprintf("%s = @%sNew", fieldName, fieldName))
-				args[fieldName + "New"] = fieldValue.Elem().Interface() // Dereference the pointer
+				args[fieldName+"New"] = fieldValue.Elem().Interface() // Dereference the pointer
 			} else {
 				setClauses = append(setClauses, fmt.Sprintf("%s = @%s", fieldName, fieldName))
 				args[fieldName] = fieldValue.Elem().Interface()
@@ -166,17 +166,17 @@ func IsValidURI(urlString string) bool {
 }
 
 func CalculateCaloriesBurned(activity string, minutes int) int {
-	activityCaloriesBurnedPerMinute := map[string]int {
-		"Walking": 4,
-		"Yoga": 4,
+	activityCaloriesBurnedPerMinute := map[string]int{
+		"Walking":    4,
+		"Yoga":       4,
 		"Stretching": 4,
-		"Cycling": 8,
-		"Swimming": 8,
-		"Dancing": 8,
-		"Hiking": 10,
-		"Running": 10,
-		"HIIT": 10,
-		"JumpRope": 10,
+		"Cycling":    8,
+		"Swimming":   8,
+		"Dancing":    8,
+		"Hiking":     10,
+		"Running":    10,
+		"HIIT":       10,
+		"JumpRope":   10,
 	}
 
 	return activityCaloriesBurnedPerMinute[activity] * minutes

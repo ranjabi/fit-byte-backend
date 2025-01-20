@@ -7,6 +7,8 @@ import (
 	"fit-byte/utils"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -64,6 +66,82 @@ func (h *AcitivityHandler) HandleCreateActivity(w http.ResponseWriter, r *http.R
 		UpdatedAt:         newActivity.UpdatedAt,
 	}
 	utils.SetJsonResponse(w, http.StatusCreated, res)
+
+	return nil
+}
+
+func IsISO8601Date(fl validator.FieldLevel) bool {
+	ISO8601DateRegexString := "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-][01]\\d:[0-5]\\d)$"
+	ISO8601DateRegex := regexp.MustCompile(ISO8601DateRegexString)
+  return ISO8601DateRegex.MatchString(fl.Field().String())
+}
+
+func (h *AcitivityHandler) HandleGetAllActivities(w http.ResponseWriter, r *http.Request) error {
+	
+	validate := validator.New()
+	validate.RegisterValidation("ISO8601date", IsISO8601Date)
+
+	params := r.URL.Query()
+	limitStr := params.Get("limit")
+	offsetStr := params.Get("offset")
+	activityTypeRaw := params.Get("activityType")
+	doneAtFromRaw := params.Get("doneAtFrom")
+	doneAtToRaw := params.Get("doneAtTo")
+	caloriesBurnedMinRaw := params.Get("caloriesBurnedMin")
+	caloriesBurnedMaxRaw := params.Get("caloriesBurnedMax")
+	limit := 5
+	offset := 0
+	var activityType *string = &activityTypeRaw
+	var doneAtFrom *string = &doneAtFromRaw
+	var doneAtTo *string = &doneAtToRaw
+	var caloriesBurnedMin *string = &caloriesBurnedMinRaw
+	var caloriesBurnedMax *string = &caloriesBurnedMaxRaw
+	
+	if limitStr != "" {
+		limitTemp, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return models.NewError(http.StatusBadRequest, err.Error())
+		}
+		if limitTemp >= 0 {
+			limit = limitTemp
+		}
+	}
+	if offsetStr != "" {
+		offsetTemp, err := strconv.Atoi(offsetStr)
+		if err != nil {
+			return models.NewError(http.StatusBadRequest, err.Error())
+		}
+		if offsetTemp >= 0 {
+			offset = offsetTemp
+		}
+	}
+	if err := validate.Var(activityType, "oneof=Walking Yoga Stretching Cycling Swimming Dancing Hiking Running HIIT JumpRope"); err != nil {
+		// fmt.Println("----- SKIP activityType VALIDATION")
+		activityType = nil
+	}
+	if err := validate.Var(doneAtFrom, "ISO8601date"); err != nil {
+		// fmt.Println("----- SKIP doneAtFrom VALIDATION")
+		doneAtFrom = nil
+	}
+	if err := validate.Var(doneAtTo, "ISO8601date"); err != nil {
+		// fmt.Println("----- SKIP doneAtTo VALIDATION")
+		doneAtTo = nil
+	}
+	if err := validate.Var(caloriesBurnedMin, "numeric"); err != nil {
+		// fmt.Println("----- SKIP caloriesBurnedMin VALIDATION")
+		caloriesBurnedMin = nil
+	}
+	if err := validate.Var(caloriesBurnedMax, "numeric"); err != nil {
+		// fmt.Println("----- SKIP caloriesBurnedMax VALIDATION")
+		caloriesBurnedMax = nil
+	}
+
+	activities, err := h.activityService.GetAllActivities(offset, limit, activityType, doneAtFrom, doneAtTo, caloriesBurnedMin, caloriesBurnedMax)
+	if err != nil {
+		return err
+	}
+
+	utils.SetJsonResponse(w, http.StatusOK, activities)
 
 	return nil
 }
