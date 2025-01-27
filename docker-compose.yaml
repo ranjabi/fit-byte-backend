@@ -1,0 +1,60 @@
+services:
+  go-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile.multistage
+    depends_on: 
+      - postgres
+    networks:
+      - mynet
+    ports:
+      - "8080:8080"
+    # deploy:
+    #   restart_policy:
+    #       condition: on-failure
+
+  postgres:
+    image: postgres:17.2-alpine
+    ports:
+      - "5432:5432"
+    networks:
+      - mynet
+    environment:
+      POSTGRES_PASSWORD: 123456
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Mount Prometheus config file
+      # - prometheus-data:/prometheus                      # Persistent storage for Prometheus
+    restart: unless-stopped
+    networks:
+      - mynet
+    depends_on: 
+      - go-server
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    # volumes:
+    #   - grafana-data:/var/lib/grafana  # Persistent storage for Grafana
+    restart: unless-stopped
+    networks:
+      - mynet
+    depends_on: 
+      - prometheus
+
+# volumes:
+#   myvolume:
+
+networks:
+  mynet:
+    driver: bridge

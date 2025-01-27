@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -19,6 +20,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var s3Client *s3.Client
@@ -33,8 +36,70 @@ func initS3(ctx context.Context) error {
 	return nil
 }
 
+type Metrics struct {
+	httpRequestsTotal *prometheus.CounterVec
+	httpDuration *prometheus.HistogramVec
+}
+
+func NewMetrics(reg prometheus.Registerer) *Metrics {
+	m := &Metrics{
+		httpRequestsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "http_requests_total",
+				Help: "Total number of HTTP requests.",
+			},
+			[]string{"method", "status", "handler"},
+		),
+		httpDuration: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "http_request_duration_seconds",
+				Help:    "Histogram of HTTP request durations.",
+				Buckets: prometheus.DefBuckets,
+			},
+			[]string{"method", "handler"},
+		),
+	}
+	reg.MustRegister(m.httpRequestsTotal)
+	reg.MustRegister(m.httpDuration)
+	return m
+}
+
+type AppResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewResponseWriter(w http.ResponseWriter) *AppResponseWriter {
+	return &AppResponseWriter{w, http.StatusOK}
+}
+
+func (rw *AppResponseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (m *Metrics) MetricsMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        start := time.Now()
+
+		rw := NewResponseWriter(w)
+        next.ServeHTTP(rw, r)
+
+        duration := time.Since(start).Seconds()
+
+        // Automatically set the labels based on the request
+        m.httpRequestsTotal.WithLabelValues(r.Method, http.StatusText(rw.statusCode), r.URL.Path).Inc()
+        m.httpDuration.WithLabelValues(r.Method, r.URL.Path).Observe(duration)
+    })
+}
+
 func main() {
-    err := godotenv.Load(".env")
+	env := ".env"
+	if os.Getenv("ENV") == "dev.docker" {
+		env = ".env.dev.docker"
+	}
+
+    err := godotenv.Load(env)
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -61,6 +126,10 @@ func main() {
     r := chi.NewRouter()
     r.Use(middleware.Logger)
 	r.Use(middleware.Heartbeat("/ping"))
+	
+	m := NewMetrics(prometheus.DefaultRegisterer)
+	r.Use(m.MetricsMiddleware)
+	r.Handle("/metrics", promhttp.Handler())
     
     r.Route("/v1", func(r chi.Router) {
 		// public
